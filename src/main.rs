@@ -1,19 +1,19 @@
 mod provider;
 
-use gloo_file::{File, callbacks::FileReader};
+use gloo_file::{callbacks::FileReader, File};
 use log::{debug, info};
 use provider::{Provider, Tick};
-use web_sys::HtmlInputElement;
-use std::{rc::Rc, collections::HashMap};
+use std::{collections::HashMap, rc::Rc};
 use wasm_bindgen::JsValue;
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 mod bindings;
 mod model {
-    pub mod time_of_day;
-    pub mod parser;
-    pub mod date_map;
     pub mod data_manager;
+    pub mod date_map;
+    pub mod parser;
+    pub mod time_of_day;
     pub mod symptoms {
         pub mod symptom;
     }
@@ -31,7 +31,7 @@ struct Model {
     provider: Rc<Provider>,
     error_msg: String,
     readers: HashMap<String, FileReader>,
-    csv: String
+    csv: String,
 }
 
 impl Component for Model {
@@ -43,7 +43,7 @@ impl Component for Model {
             provider: Rc::new(Provider {}),
             error_msg: String::new(),
             readers: HashMap::default(),
-            csv: String::new()
+            csv: String::new(),
         }
     }
 

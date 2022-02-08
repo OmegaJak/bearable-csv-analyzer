@@ -64,9 +64,9 @@ impl<T> DerefMut for BTreeDateMap<T> {
 }
 
 #[cfg(test)]
-mod tests {    
+mod tests {
     use super::*;
-    
+
     #[test]
     fn BTreeDateMap_WithOrderedNaiveDateTimeSpan_IsOrderedCorrectly() {
         let mut map = BTreeDateMap::<bool>::new();
