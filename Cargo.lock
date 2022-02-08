@@ -24,6 +24,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33954243bd79057c2de7338850b85983a44588021f8a5fee574a8888c6de4344"
 
 [[package]]
+name = "assertables"
+version = "4.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f04680a7010d104c1c7fa4d96f23b06fe10b28e4b9fc9148db3de63f5085bbd9"
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -850,6 +856,7 @@ name = "yew_d3_example"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "assertables",
  "chrono",
  "csv",
  "gloo-file 0.2.0",

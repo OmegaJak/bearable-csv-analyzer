@@ -27,3 +27,6 @@ serde_plain = "1.0.0"
 [dependencies.web-sys]
 version = "0.3"
 features = ["File"]
+
+[dev-dependencies]
+assertables = "4.0.6"

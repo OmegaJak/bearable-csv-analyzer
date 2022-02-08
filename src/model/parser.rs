@@ -6,21 +6,21 @@ use serde::Deserialize;
 use super::{data_manager::DataManager, date_map::BTreeDateMap, symptoms::symptom::Symptom, time_of_day::TimeOfDay};
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct CsvRow {
+pub struct CsvRow {
     #[serde(with = "bearable_date_format")]
-    date: NaiveDate,
-    weekday: String,
+    pub date: NaiveDate,
+    pub weekday: String,
 
     #[serde(rename = "time of day")]
-    time_of_day: String,
+    pub time_of_day: String,
 
-    category: String,
+    pub category: String,
 
     #[serde(rename = "rating/amount")]
-    amount: String,
+    pub amount: String,
 
-    detail: String,
-    notes: String,
+    pub detail: String,
+    pub notes: String,
 }
 
 mod bearable_date_format {
@@ -53,19 +53,22 @@ mod bearable_date_format {
 
 pub fn parse_into_data_manager<R: std::io::Read>(reader: csv::Reader<R>) -> DataManager {
     let rows = parse_rdr(reader);
+    create_data_manager(rows)
+}
+
+pub fn parse_into_data_manager_str(csv_text: &str) -> DataManager {
+    let rows = parse(csv_text);
+    create_data_manager(rows)
+}
+
+fn create_data_manager(rows: Vec<CsvRow>) -> DataManager {
     let symptom_rows = rows.iter().filter(|r| r.category == "Symptom");
     let mut symptoms = Vec::<Symptom>::new();
     for symptom_row in symptom_rows {
-        let symptom = Symptom {
-            name: symptom_row.detail.to_string(),
-            time_of_day: serde_plain::from_str::<TimeOfDay>(&symptom_row.time_of_day).unwrap(),
-            severity: str::parse::<u8>(&symptom_row.amount).expect("Failed to parse symptom amount"),
-            date: symptom_row.date,
-        };
+        let symptom = Symptom::from(&symptom_row);
 
         symptoms.push(symptom);
     }
-
     DataManager::from(symptoms)
 }
 
@@ -81,6 +84,9 @@ fn parse_rdr<R: std::io::Read>(mut reader: csv::Reader<R>) -> Vec<CsvRow> {
 
 #[cfg(test)]
 mod tests {
+    use std::ascii::AsciiExt;
+
+    use assertables::assert_set_eq;
     use csv::Reader;
 
     use super::*;
@@ -103,6 +109,29 @@ mod tests {
         };
         assert_eq!(result.len(), 1);
         assert_eq!(result.first().unwrap(), &expected_row);
+    }
+
+    #[test]
+    fn Parse_ForCsvContainingOnlySymptoms_CorrectlyParsesSymptoms() {
+        let text = r#"date,weekday,time of day,category,rating/amount,detail,notes
+"5th Jan 2022","Wednesday","am","Symptom","1","Headache (Mild)",""
+"5th Jan 2022","Wednesday","am","Symptom","1","Neck pain (Mild)",""
+"5th Jan 2022","Wednesday","mid","Symptom","1","Neck pain (Mild)",""
+"5th Jan 2022","Wednesday","pm","Symptom","1","Neck pain (Mild)",""
+"5th Jan 2022","Wednesday","pre","Symptom","1","Back (lower) pain (Mild)",""
+"5th Jan 2022","Wednesday","am","Symptom","2","Back (lower) pain (Moderate)",""
+"5th Jan 2022","Wednesday","mid","Symptom","2","Back (lower) pain (Moderate)",""
+"5th Jan 2022","Wednesday","pm","Symptom","2","Back (lower) pain (Moderate)",""
+"5th Jan 2022","Wednesday","pre","Symptom","1","Back (mid) pain (Mild)",""
+"5th Jan 2022","Wednesday","am","Symptom","3","Back (mid) pain (Severe)",""
+"5th Jan 2022","Wednesday","mid","Symptom","3","Back (mid) pain (Severe)",""
+"5th Jan 2022","Wednesday","pm","Symptom","2","Back (mid) pain (Unbearable)","""#;
+
+        let data_man = parse_into_data_manager_str(text);
+
+        let expected_symptoms = vec!["Headache", "Neck pain", "Back (lower) pain", "Back (mid) pain"];
+        let actual_symptoms = Vec::from_iter(data_man.symptoms.keys().into_iter().map(|s| s as &str));
+        assert_set_eq!(expected_symptoms, actual_symptoms);
     }
 
     #[test]
