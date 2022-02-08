@@ -22,6 +22,7 @@ csv = "1.1"
 regex = "1"
 lazy_static = "1.4.0"
 timespan = { version = "^0", features = ["with-serde"] }
+serde_plain = "1.0.0"
 
 [dependencies.web-sys]
 version = "0.3"

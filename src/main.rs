@@ -13,6 +13,7 @@ mod model {
     pub mod time_of_day;
     pub mod parser;
     pub mod date_map;
+    pub mod data_manager;
     pub mod symptoms {
         pub mod symptom;
     }

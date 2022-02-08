@@ -6,7 +6,7 @@ use chrono::NaiveDate;
 use timespan::NaiveDateTimeSpan;
 
 #[derive(PartialEq, Debug, Clone)]
-struct OrderedNaiveDateTimeSpan(NaiveDateTimeSpan);
+pub struct OrderedNaiveDateTimeSpan(pub NaiveDateTimeSpan);
 
 impl Deref for OrderedNaiveDateTimeSpan {
     type Target = NaiveDateTimeSpan;
@@ -36,7 +36,7 @@ impl PartialOrd for OrderedNaiveDateTimeSpan {
 
 impl Eq for OrderedNaiveDateTimeSpan {}
 
-struct BTreeDateMap<T>(BTreeMap<OrderedNaiveDateTimeSpan, T>);
+pub struct BTreeDateMap<T>(BTreeMap<OrderedNaiveDateTimeSpan, T>);
 
 impl<T> BTreeDateMap<T> {
     pub fn new() -> BTreeDateMap<T> {
