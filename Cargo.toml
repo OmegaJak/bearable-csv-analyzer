@@ -7,11 +7,22 @@ edition = "2018"
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-yew = { git = "https://github.com/yewstack/yew", branch = "master" }
-yewtil = { git = "https://github.com/yewstack/yew", branch = "master" }
+yew = "0.19"
+yewtil = "0.4.0"
 anyhow = "1.0"
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"    
 log = "0.4.6"
 wasm-logger = "0.2.0"
 stdweb = "0.4.20"
+js-sys = "0.3"
+gloo-file = "0.2"
+chrono = { version = "0.4", features = ["serde"] }
+csv = "1.1"
+regex = "1"
+lazy_static = "1.4.0"
+timespan = { version = "^0", features = ["with-serde"] }
+
+[dependencies.web-sys]
+version = "0.3"
+features = ["File"]
