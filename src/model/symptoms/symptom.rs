@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use chrono::{NaiveDate, NaiveDateTime};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -8,7 +10,7 @@ use crate::model::{date_map::OrderedNaiveDateTimeSpan, parser::CsvRow};
 
 use super::super::time_of_day::TimeOfDay;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct Symptom {
     #[serde(rename = "detail")]
     pub name: String,

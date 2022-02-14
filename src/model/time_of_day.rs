@@ -4,7 +4,7 @@ use chrono::{Duration, NaiveDateTime, NaiveTime};
 use serde::Deserialize;
 use timespan::NaiveTimeSpan;
 
-#[derive(Debug, Deserialize, PartialEq, Clone, Copy)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum TimeOfDay {
     #[serde(rename = "")]
@@ -17,7 +17,7 @@ pub enum TimeOfDay {
 }
 
 fn span(time: NaiveTime) -> Result<NaiveTimeSpan, timespan::Error> {
-    NaiveTimeSpan::new(time, time + Duration::hours(6))
+    NaiveTimeSpan::new(time, time + Duration::hours(5) + Duration::minutes(59) + Duration::seconds(59))
 }
 
 impl TimeOfDay {

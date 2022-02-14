@@ -84,9 +84,7 @@ fn parse_rdr<R: std::io::Read>(mut reader: csv::Reader<R>) -> Vec<CsvRow> {
 
 #[cfg(test)]
 mod tests {
-    use std::ascii::AsciiExt;
-
-    use assertables::assert_set_eq;
+    use assertables::*;
     use csv::Reader;
 
     use super::*;
@@ -125,13 +123,50 @@ mod tests {
 "5th Jan 2022","Wednesday","pre","Symptom","1","Back (mid) pain (Mild)",""
 "5th Jan 2022","Wednesday","am","Symptom","3","Back (mid) pain (Severe)",""
 "5th Jan 2022","Wednesday","mid","Symptom","3","Back (mid) pain (Severe)",""
-"5th Jan 2022","Wednesday","pm","Symptom","2","Back (mid) pain (Unbearable)","""#;
+"5th Jan 2022","Wednesday","pm","Symptom","4","Back (mid) pain (Unbearable)","""#;
+        let date = NaiveDate::from_ymd(2022, 1, 5);
 
         let data_man = parse_into_data_manager_str(text);
 
         let expected_symptoms = vec!["Headache", "Neck pain", "Back (lower) pain", "Back (mid) pain"];
-        let actual_symptoms = Vec::from_iter(data_man.symptoms.keys().into_iter().map(|s| s as &str));
-        assert_set_eq!(expected_symptoms, actual_symptoms);
+        let actual_symptoms = Vec::from_iter(data_man.get_symptom_names().into_iter().map(|s| s as &str));
+        assert_bag_eq!(expected_symptoms, actual_symptoms);
+
+        let expected_mid_pain = vec![
+            Symptom {
+                date: date,
+                name: "Back (mid) pain".to_string(),
+                severity: 1,
+                time_of_day: TimeOfDay::Pre,
+            },
+            Symptom {
+                date: date,
+                name: "Back (mid) pain".to_string(),
+                severity: 3,
+                time_of_day: TimeOfDay::AM,
+            },
+            Symptom {
+                date: date,
+                name: "Back (mid) pain".to_string(),
+                severity: 3,
+                time_of_day: TimeOfDay::MID,
+            },
+            Symptom {
+                date: date,
+                name: "Back (mid) pain".to_string(),
+                severity: 4,
+                time_of_day: TimeOfDay::PM,
+            },
+        ];
+        let expected_mid_pain = Vec::from_iter(expected_mid_pain.into_iter());
+        let actual_mid_pain = Vec::from_iter(
+            data_man
+                .get_all_sorted_symptoms(expected_symptoms[3])
+                .unwrap()
+                .into_iter()
+                .map(|s| s.to_owned()),
+        );
+        assert_eq!(expected_mid_pain, actual_mid_pain);
     }
 
     #[test]
@@ -140,6 +175,6 @@ mod tests {
 
         let data_man = parse_into_data_manager(reader);
 
-        assert_eq!(true, data_man.symptoms.len() > 0)
+        assert_eq!(true, data_man.get_symptom_names().len() > 0)
     }
 }
