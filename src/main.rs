@@ -2,11 +2,15 @@ mod provider;
 
 use gloo_file::{callbacks::FileReader, File};
 use log::{debug, info};
-use provider::{Provider, Tick};
+use model::{data_manager::DataManager};
+use provider::{Provider};
+use view_model::scatter_plot::ScatterPlot;
 use std::{collections::HashMap, rc::Rc};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
+
+use crate::model::{parser};
 
 mod bindings;
 mod model {
@@ -18,10 +22,13 @@ mod model {
         pub mod symptom;
     }
 }
+mod view_model {
+    pub mod scatter_plot;
+}
 
 enum Msg {
     FetchChart,
-    SetFetchChartResult(Vec<Tick>),
+    SetFetchChartResult(ScatterPlot),
     ShowError(String),
     Files(Vec<File>),
     Loaded(String, String),
@@ -31,7 +38,8 @@ struct Model {
     provider: Rc<Provider>,
     error_msg: String,
     readers: HashMap<String, FileReader>,
-    csv: String,
+    csv_text: String,
+    data_manager: Option<DataManager>
 }
 
 impl Component for Model {
@@ -43,7 +51,8 @@ impl Component for Model {
             provider: Rc::new(Provider {}),
             error_msg: String::new(),
             readers: HashMap::default(),
-            csv: String::new(),
+            csv_text: String::new(),
+            data_manager: None
         }
     }
 
@@ -51,17 +60,16 @@ impl Component for Model {
         match msg {
             Msg::FetchChart => {
                 debug!("Fetching chart...");
-                let provider = self.provider.clone();
-                ctx.link().send_future(async move {
-                    match provider.fetch_chart().await {
-                        Ok(entries) => Msg::SetFetchChartResult(entries),
-                        Err(err) => Msg::ShowError(format!("{}", err)),
+                ctx.link().send_message(
+                    match Provider::fetch_chart(&self.data_manager) {
+                        Some(scatter_plot) => Msg::SetFetchChartResult(scatter_plot),
+                        None => Msg::ShowError("returned null".to_string()),
                     }
-                });
-                false
+                );
+                true
             }
-            Msg::SetFetchChartResult(chart) => {
-                Self::show_chart(chart);
+            Msg::SetFetchChartResult(data) => {
+                Self::show_chart(data);
                 true
             }
             Msg::ShowError(msg) => {
@@ -88,7 +96,9 @@ impl Component for Model {
             }
             Msg::Loaded(csv_name, csv_text) => {
                 info!("{:?}", csv_text);
+                self.csv_text = csv_text;
                 self.readers.remove(&csv_name);
+                self.data_manager = Some(parser::parse_into_data_manager_str(self.csv_text.as_str())); //TODO: Some async stuff here to avoid hanging?
                 true
             }
         }
@@ -100,18 +110,18 @@ impl Component for Model {
                 <input type="file" multiple=false accept=".csv" onchange={ctx.link().callback(move |e| Self::on_file_change(e))} />
                 <button onclick={ctx.link().callback(|_| Msg::FetchChart)}>{ "Fetch" }</button>
                 <p style="color: red;"> { self.error_msg.clone() }</p>
-                <svg id="chart"></svg>
+                <svg id="chart" width="960" height="500"></svg>
             </div>
         }
     }
 }
 
 impl Model {
-    fn show_chart(ticks: Vec<Tick>) {
+    fn show_chart(scatter_plot: ScatterPlot) {
         debug!("Showing chart");
         // call js
         // the bindings are defined in bindings.rs
-        bindings::show_chart(JsValue::from_serde(&ticks).unwrap());
+        bindings::show_chart(JsValue::from_serde(&scatter_plot.points).unwrap());
     }
 
     fn on_file_change(e: Event) -> Msg {

@@ -1,8 +1,10 @@
 #![feature(map_try_insert)]
 
-use std::{collections::HashMap, iter::FromIterator};
+use std::{collections::HashMap, iter::FromIterator, ops::RangeBounds};
 
 use log::debug;
+
+use crate::view_model::scatter_plot::{ScatterPlot, DateTimeValuePoint};
 
 use super::{
     date_map::{self, BTreeDateMap, OrderedNaiveDateTimeSpan},
@@ -36,7 +38,21 @@ impl DataManager {
     }
 
     pub fn get_all_sorted_symptoms(&self, symptom_name: &str) -> Option<Vec<&Symptom>> {
-        let map = self.symptoms.get(symptom_name);
-        Some(Vec::from_iter(map?.values().into_iter()))
+        let map = self.symptoms.get(symptom_name)?;
+        Some(Vec::from_iter(map.values().into_iter()))
+    }
+
+    pub fn get_basic_symptoms_scatterplot<R>(&self, symptom_name: &str, range: R) -> Option<ScatterPlot>
+        where R: RangeBounds<OrderedNaiveDateTimeSpan>
+    {
+        let map = self.symptoms.get(symptom_name)?;
+        let values = map.range(range)
+            .into_iter()
+            .map(|(k, v)| DateTimeValuePoint {
+                x: k.start,
+                y: v.severity
+            })
+            .collect::<Vec<DateTimeValuePoint>>();
+        return Some(ScatterPlot { points: values });
     }
 }

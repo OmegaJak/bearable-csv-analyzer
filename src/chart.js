@@ -1,62 +1,70 @@
-export function show_chart(ticks) {
-  var margin = {
-      top: 10,
-      right: 30,
-      bottom: 30,
-      left: 60,
-    },
-    width = 1200 - margin.left - margin.right,
-    height = 600 - margin.top - margin.bottom;
+export function show_chart(data) {
+  console.log("JavaScript received data:")
+  console.log(data)
 
-  var svg = d3
-    .select("#chart")
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  const xValue = d => Date.parse(d.x);
+  const xLabel = 'Time';
+  const yValue = d => d.y;
+  const yLabel = 'Temperature';
+  const margin = { left: 120, right: 30, top: 20, bottom: 120 };
 
-  var x = d3
-    .scaleTime()
-    .domain(
-      d3.extent(ticks, function (d) {
-        return d.time * 1000;
-      })
-    )
-    .nice()
-    .range([0, width]);
+  const svg = d3.select('#chart');
+  const width = svg.attr('width');
+  const height = svg.attr('height');
+  const innerWidth = width - margin.left - margin.right;
+  const innerHeight = height - margin.top - margin.bottom;
 
-  svg
-    .append("g")
-    .attr("transform", "translate(0," + height + ")")
-    .call(d3.axisBottom(x).tickFormat(d3.utcFormat("%y/%m/%d %H:%M")));
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+  const xAxisG = g.append('g')
+    .attr('transform', `translate(0, ${innerHeight})`);
+  const yAxisG = g.append('g');
 
-  var y = d3
-    .scaleLinear()
-    .domain([d3.min(ticks, (d) => d.bottom), d3.max(ticks, (d) => d.top)])
-    .nice()
-    .range([height, 0]);
+  xAxisG.append('text')
+    .attr('class', 'axis-label')
+    .attr('x', innerWidth / 2)
+    .attr('y', 100)
+    .text(xLabel);
 
-  svg.append("g").call(d3.axisLeft(y));
+  yAxisG.append('text')
+    .attr('class', 'axis-label')
+    .attr('x', -innerHeight / 2)
+    .attr('y', -60)
+    .attr('transform', `rotate(-90)`)
+    .style('text-anchor', 'middle')
+    .text(yLabel);
 
-  const g = svg
-    .append("g")
-    .attr("stroke-linecap", "round")
-    .attr("stroke", "black")
-    .selectAll("g")
-    .data(ticks)
-    .join("g")
-    .attr("transform", (d) => `translate(${x(d.time * 1000)},0)`);
+  const xScale = d3.scaleTime();
+  const yScale = d3.scaleLinear();
 
-  g.append("line")
-    .attr("y1", (d) => y(d.bottom))
-    .attr("y2", (d) => y(d.top));
+  const xAxis = d3.axisBottom()
+    .scale(xScale)
+    .tickPadding(15)
+    .tickSize(-innerHeight);
 
-  g.append("line")
-    .attr("y1", (d) => y(d.open))
-    .attr("y2", (d) => y(d.close))
-    .attr("stroke-width", 4)
-    .attr("stroke", (d) =>
-      d.open > d.close ? "red" : d.close > d.open ? "green" : "black"
-    );
+  const yAxis = d3.axisLeft()
+    .scale(yScale)
+    .ticks(5)
+    .tickPadding(15)
+    .tickSize(-innerWidth);
+
+  xScale
+    .domain(d3.extent(data, xValue))
+    .range([0, innerWidth])
+    .nice();
+
+  yScale
+    .domain([0, 4]/* d3.extent(data, yValue) */)
+    .range([innerHeight, 0])
+    .nice();
+
+  g.selectAll('circle').data(data)
+    .enter().append('circle')
+    .attr('cx', d => xScale(xValue(d)))
+    .attr('cy', d => yScale(yValue(d)))
+    .attr('fill-opacity', 0.6)
+    .attr('r', 8);
+
+  xAxisG.call(xAxis);
+  yAxisG.call(yAxis);
 }
