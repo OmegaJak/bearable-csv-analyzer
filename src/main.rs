@@ -27,19 +27,21 @@ mod view_model {
 }
 
 enum Msg {
-    FetchChart,
+    FetchSymptomScatterplot,
     SetFetchChartResult(ScatterPlot),
     ShowError(String),
     Files(Vec<File>),
     Loaded(String, String),
+    SymptomSelectionUpdated(String),
 }
 
 struct Model {
-    provider: Rc<Provider>,
     error_msg: String,
     readers: HashMap<String, FileReader>,
     csv_text: String,
-    data_manager: Option<DataManager>
+    data_manager: Option<DataManager>,
+    symptom_names: Vec<String>,
+    selected_symptom: Option<String>
 }
 
 impl Component for Model {
@@ -48,20 +50,22 @@ impl Component for Model {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            provider: Rc::new(Provider {}),
             error_msg: String::new(),
             readers: HashMap::default(),
             csv_text: String::new(),
-            data_manager: None
+            data_manager: None,
+            symptom_names: Vec::new(),
+            selected_symptom: None,
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::FetchChart => {
+            Msg::FetchSymptomScatterplot => {
                 debug!("Fetching chart...");
                 ctx.link().send_message(
-                    match Provider::fetch_chart(&self.data_manager) {
+                    
+                    match Provider::fetch_chart(&self.data_manager, &self.selected_symptom) {
                         Some(scatter_plot) => Msg::SetFetchChartResult(scatter_plot),
                         None => Msg::ShowError("returned null".to_string()),
                     }
@@ -99,6 +103,19 @@ impl Component for Model {
                 self.csv_text = csv_text;
                 self.readers.remove(&csv_name);
                 self.data_manager = Some(parser::parse_into_data_manager_str(self.csv_text.as_str())); //TODO: Some async stuff here to avoid hanging?
+
+                if let Some(data_manager) = &self.data_manager {
+                    self.symptom_names = data_manager.get_symptom_names()
+                        .into_iter()
+                        .map(|s| s.to_owned())
+                        .collect::<Vec<String>>();
+                }
+
+                true
+            },
+            Msg::SymptomSelectionUpdated(symptom) => {
+                info!("Received symptom selection {:?}", symptom);
+                self.selected_symptom = Some(symptom);
                 true
             }
         }
@@ -108,7 +125,12 @@ impl Component for Model {
         html! {
             <div>
                 <input type="file" multiple=false accept=".csv" onchange={ctx.link().callback(move |e| Self::on_file_change(e))} />
-                <button onclick={ctx.link().callback(|_| Msg::FetchChart)}>{ "Fetch" }</button>
+
+                <select name="symptom_choice" id="symptom_choice" onchange={ctx.link().callback(move |e| Self::on_symptom_change(e))}>
+                    { for self.symptom_names.iter().map(|e| self.view_option(e)) }
+                </select>
+
+                <button onclick={ctx.link().callback(|_| Msg::FetchSymptomScatterplot)}>{ "Fetch" }</button>
                 <p style="color: red;"> { self.error_msg.clone() }</p>
                 <svg id="chart" width="960" height="500"></svg>
             </div>
@@ -138,6 +160,21 @@ impl Model {
             result.extend(files);
         }
         Msg::Files(result)
+    }
+
+    fn on_symptom_change(e: Event) -> Msg {
+        info!("On symptom change");
+        let input: HtmlInputElement = e.target_unchecked_into();
+        let value = input.value();
+
+        Msg::SymptomSelectionUpdated(value)
+    }
+
+    fn view_option(&self, symptom: &str) -> Html {
+        let owned_symptom = symptom.to_string();
+        html! {
+            <option value={owned_symptom}>{ symptom }</option>
+        }
     }
 }
 

@@ -9,6 +9,8 @@ export function show_chart(data) {
   const margin = { left: 120, right: 30, top: 20, bottom: 120 };
 
   const svg = d3.select('#chart');
+  svg.selectAll('*').remove();
+  
   const width = svg.attr('width');
   const height = svg.attr('height');
   const innerWidth = width - margin.left - margin.right;
