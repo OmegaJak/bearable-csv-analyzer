@@ -1,5 +1,6 @@
 mod provider;
 
+use chrono::NaiveDateTime;
 use gloo_file::{callbacks::FileReader, File};
 use log::{debug, info};
 use model::{data_manager::DataManager};
@@ -32,7 +33,7 @@ enum Msg {
     ShowError(String),
     Files(Vec<File>),
     Loaded(String, String),
-    SymptomSelectionUpdated(String),
+    SymptomSelectionUpdated(Option<String>),
 }
 
 struct Model {
@@ -40,9 +41,15 @@ struct Model {
     readers: HashMap<String, FileReader>,
     csv_text: String,
     data_manager: Option<DataManager>,
+
     symptom_names: Vec<String>,
-    selected_symptom: Option<String>
+    selected_symptom: Option<String>,
+
+    earliest_symptom: String,
+    latest_symptom: String,
 }
+
+static HTML_INPUT_DATE_FORMAT: &str = "%Y-%m-%d";
 
 impl Component for Model {
     type Message = Msg;
@@ -56,6 +63,8 @@ impl Component for Model {
             data_manager: None,
             symptom_names: Vec::new(),
             selected_symptom: None,
+            earliest_symptom: String::new(),
+            latest_symptom: String::new(),
         }
     }
 
@@ -64,7 +73,6 @@ impl Component for Model {
             Msg::FetchSymptomScatterplot => {
                 debug!("Fetching chart...");
                 ctx.link().send_message(
-                    
                     match Provider::fetch_chart(&self.data_manager, &self.selected_symptom) {
                         Some(scatter_plot) => Msg::SetFetchChartResult(scatter_plot),
                         None => Msg::ShowError("returned null".to_string()),
@@ -109,13 +117,20 @@ impl Component for Model {
                         .into_iter()
                         .map(|s| s.to_owned())
                         .collect::<Vec<String>>();
+                    let selected_symptom = self.symptom_names.first().and_then(|a| Some(a.to_string()));
+                    ctx.link().clone().send_message(Msg::SymptomSelectionUpdated(selected_symptom));
                 }
 
                 true
             },
             Msg::SymptomSelectionUpdated(symptom) => {
                 info!("Received symptom selection {:?}", symptom);
-                self.selected_symptom = Some(symptom);
+                self.selected_symptom = symptom;
+                if let (Some(selection), Some(data_manager)) = (self.selected_symptom.to_owned(), &self.data_manager) {
+                    let range = data_manager.get_symptom_date_range(selection.as_str()).expect("Symptom has dates");
+                    self.earliest_symptom = format_date_for_html(range.start());
+                    self.latest_symptom = format_date_for_html(range.end());
+                }
                 true
             }
         }
@@ -129,6 +144,9 @@ impl Component for Model {
                 <select name="symptom_choice" id="symptom_choice" onchange={ctx.link().callback(move |e| Self::on_symptom_change(e))}>
                     { for self.symptom_names.iter().map(|e| self.view_option(e)) }
                 </select>
+
+                <input type="date" id="start_date" name="start_date" min={self.earliest_symptom.to_owned()} max={self.latest_symptom.to_owned()}/>
+                <input type="date" id="end_date" name="end_date" min={self.earliest_symptom.to_owned()} max={self.latest_symptom.to_owned()}/>
 
                 <button onclick={ctx.link().callback(|_| Msg::FetchSymptomScatterplot)}>{ "Fetch" }</button>
                 <p style="color: red;"> { self.error_msg.clone() }</p>
@@ -167,7 +185,7 @@ impl Model {
         let input: HtmlInputElement = e.target_unchecked_into();
         let value = input.value();
 
-        Msg::SymptomSelectionUpdated(value)
+        Msg::SymptomSelectionUpdated(Some(value))
     }
 
     fn view_option(&self, symptom: &str) -> Html {
@@ -176,6 +194,10 @@ impl Model {
             <option value={owned_symptom}>{ symptom }</option>
         }
     }
+}
+
+fn format_date_for_html(dateTime: &NaiveDateTime) -> String {
+    dateTime.date().format(HTML_INPUT_DATE_FORMAT).to_string()
 }
 
 fn main() {

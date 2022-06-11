@@ -44,8 +44,12 @@ impl<T> BTreeDateMap<T> {
         BTreeDateMap(inner_map)
     }
 
-    pub fn get_str() -> String {
-        "asdf".to_string()
+    pub fn min(&self) -> Option<(&OrderedNaiveDateTimeSpan, &T)> {
+        self.iter().next()
+    }
+
+    pub fn max(&self) -> Option<(&OrderedNaiveDateTimeSpan, &T)> {
+        self.iter().next_back()
     }
 }
 
