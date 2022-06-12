@@ -1,6 +1,6 @@
 mod provider;
 
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, NaiveDate};
 use gloo_file::{callbacks::FileReader, File};
 use log::{debug, info};
 use model::{data_manager::DataManager};
@@ -34,6 +34,8 @@ enum Msg {
     Files(Vec<File>),
     Loaded(String, String),
     SymptomSelectionUpdated(Option<String>),
+    StartDateUpdated(Option<String>),
+    EndDateUpdated(Option<String>)
 }
 
 struct Model {
@@ -45,8 +47,11 @@ struct Model {
     symptom_names: Vec<String>,
     selected_symptom: Option<String>,
 
-    earliest_symptom: String,
-    latest_symptom: String,
+    earliest_symptom_date: String,
+    latest_symptom_date: String,
+
+    selected_start_date: Option<NaiveDate>,
+    selected_end_date: Option<NaiveDate>,
 }
 
 static HTML_INPUT_DATE_FORMAT: &str = "%Y-%m-%d";
@@ -63,8 +68,10 @@ impl Component for Model {
             data_manager: None,
             symptom_names: Vec::new(),
             selected_symptom: None,
-            earliest_symptom: String::new(),
-            latest_symptom: String::new(),
+            earliest_symptom_date: String::new(),
+            latest_symptom_date: String::new(),
+            selected_start_date: None,
+            selected_end_date: None,
         }
     }
 
@@ -73,7 +80,7 @@ impl Component for Model {
             Msg::FetchSymptomScatterplot => {
                 debug!("Fetching chart...");
                 ctx.link().send_message(
-                    match Provider::fetch_chart(&self.data_manager, &self.selected_symptom) {
+                    match Provider::fetch_chart(&self.data_manager, &self.selected_symptom, &self.selected_start_date, &self.selected_end_date) {
                         Some(scatter_plot) => Msg::SetFetchChartResult(scatter_plot),
                         None => Msg::ShowError("returned null".to_string()),
                     }
@@ -128,11 +135,21 @@ impl Component for Model {
                 self.selected_symptom = symptom;
                 if let (Some(selection), Some(data_manager)) = (self.selected_symptom.to_owned(), &self.data_manager) {
                     let range = data_manager.get_symptom_date_range(selection.as_str()).expect("Symptom has dates");
-                    self.earliest_symptom = format_date_for_html(range.start());
-                    self.latest_symptom = format_date_for_html(range.end());
+                    self.earliest_symptom_date = format_date_for_html(range.start());
+                    self.latest_symptom_date = format_date_for_html(range.end());
                 }
                 true
             }
+            Msg::StartDateUpdated(start_date_str) => {
+                self.selected_start_date = parse_html_date(start_date_str);
+                info!("Parsed updated start date {:?}", self.selected_start_date);
+                true
+            },
+            Msg::EndDateUpdated(end_date) => {
+                self.selected_end_date = parse_html_date(end_date);
+                info!("Parsed updated end date {:?}", self.selected_end_date);
+                true
+            },
         }
     }
 
@@ -145,8 +162,14 @@ impl Component for Model {
                     { for self.symptom_names.iter().map(|e| self.view_option(e)) }
                 </select>
 
-                <input type="date" id="start_date" name="start_date" min={self.earliest_symptom.to_owned()} max={self.latest_symptom.to_owned()}/>
-                <input type="date" id="end_date" name="end_date" min={self.earliest_symptom.to_owned()} max={self.latest_symptom.to_owned()}/>
+                <input type="date" id="start_date" name="start_date" 
+                    min={self.earliest_symptom_date.to_owned()}
+                    max={self.latest_symptom_date.to_owned()}
+                    onchange={ctx.link().callback(move |e| Self::on_start_date_change(e))}/>
+                <input type="date" id="end_date" name="end_date"
+                    min={self.earliest_symptom_date.to_owned()}
+                    max={self.latest_symptom_date.to_owned()}
+                    onchange={ctx.link().callback(move |e| Self::on_end_date_change(e))}/>
 
                 <button onclick={ctx.link().callback(|_| Msg::FetchSymptomScatterplot)}>{ "Fetch" }</button>
                 <p style="color: red;"> { self.error_msg.clone() }</p>
@@ -182,10 +205,22 @@ impl Model {
 
     fn on_symptom_change(e: Event) -> Msg {
         info!("On symptom change");
-        let input: HtmlInputElement = e.target_unchecked_into();
-        let value = input.value();
+        let value = get_html_input_value(e);
 
-        Msg::SymptomSelectionUpdated(Some(value))
+        Msg::SymptomSelectionUpdated(value)
+    }
+
+    fn on_start_date_change(e: Event) -> Msg {
+        info!("On start date change");
+        let value = get_html_input_value(e);
+        Msg::StartDateUpdated(value)
+    }
+
+    fn on_end_date_change(e: Event) -> Msg {
+        //TODO: Holy duplication, Batman!
+        info!("On end date change");
+        let value = get_html_input_value(e);    
+        Msg::EndDateUpdated(value)
     }
 
     fn view_option(&self, symptom: &str) -> Html {
@@ -196,8 +231,22 @@ impl Model {
     }
 }
 
+fn get_html_input_value(inputOnChangeEvent: Event) -> Option<String> {
+    let input: HtmlInputElement = inputOnChangeEvent.target_unchecked_into();
+    let value = input.value();
+    if value.is_empty() {
+        return None;
+    } else {
+        return Some(value);
+    }
+}
+
 fn format_date_for_html(dateTime: &NaiveDateTime) -> String {
     dateTime.date().format(HTML_INPUT_DATE_FORMAT).to_string()
+}
+
+fn parse_html_date(html_date_str: Option<String>) -> Option<NaiveDate> {
+    Some(NaiveDate::parse_from_str(html_date_str?.as_str(), HTML_INPUT_DATE_FORMAT).expect("date parsing should work"))
 }
 
 fn main() {
